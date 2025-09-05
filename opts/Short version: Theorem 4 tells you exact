@@ -1,0 +1,30 @@
+Short version: Theorem 4 tells you exactly when a zero-training-error (interpolating) minimum-norm linear regressor will still predict well. It gives matching (up to constants) upper and lower bounds on its excess test error, and those bounds depend only on the spectrum of the data covariance through two “effective rank” quantities.
+
+Here’s the moving parts in plain English:
+	•	Estimator: among all parameter vectors that perfectly fit the n samples, take the one with the smallest norm (the pseudoinverse solution).
+	•	Two spectral summaries (from the eigenvalues \{\lambda_i\} of the covariance \Sigma):
+	•	r_k(\Sigma)=\frac{\sum_{i>k}\lambda_i}{\lambda_{k+1}} and
+	•	R_k(\Sigma)=\frac{\left(\sum_{i>k}\lambda_i\right)^2}{\sum_{i>k}\lambda_i^2}.
+These measure how many low-variance directions exist past index k (and how “flat” they are).
+	•	Pick \(k^\*\) as the smallest index where the tail has large effective rank:
+\(k^\*=\min\{k\ge 0: r_k(\Sigma)\ge b\,n\}\).
+
+What the theorem actually says:
+	1.	If \(k^\*\) is too big (on the order of n), then benign overfitting cannot happen: the expected excess risk stays bounded below by a constant (so it doesn’t vanish).
+	2.	Otherwise (the interesting case), with high probability the excess risk
+\[
+R(\hat\theta)
+\;\lesssim\;
+\underbrace{\|\theta^\\|^2\|\Sigma\|\cdot \max\!\Big\{\sqrt{r_0(\Sigma)/n},\, r_0(\Sigma)/n,\, \sqrt{\log(1/\delta)/n}\Big\}}_{\text{“signal distortion” term}}
+\;+\;
+\underbrace{\log(1/\delta)\,\sigma_y^2\Big(\frac{k^\}{n}+\frac{n}{R_{k^\}(\Sigma)}\Big)}_{\text{“fit-the-noise” term}},
+\]
+and there’s a matching lower bound showing the second term \(\frac{k^\}{n}+\frac{n}{R_{k^\*}(\Sigma)}\) is unavoidable up to constants.
+
+How to read this:
+	•	The first term is the standard “finite-sample distortion” from estimating the signal; it’s small when the total variance \sum_i \lambda_i (i.e., r_0(\Sigma) up to a scaling) isn’t too large relative to n.
+	•	The second term is the new, crucial piece: it’s small iff the covariance has many low-variance directions (large \(r_{k^\}\), large \(R_{k^\}\)). Intuitively, those harmless directions act as a sponge that soaks up the label noise without hurting prediction. That’s why strong overparameterization—lots of near-null directions—is necessary for benign overfitting here.
+
+So, Theorem 4 is a complete finite-sample characterization: benign overfitting (for the minimum-norm interpolator) happens iff (i) the total variance isn’t too big (the first term is small) and (ii) there are many tiny-variance directions so that \(k^\/n\) and \(n/R_{k^\}\) are small (the second term is small).
+
+If you want, I can plug in simple spectra (e.g., flat, polynomial, exponential decay) and show what the bounds look like numerically.

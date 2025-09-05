@@ -1,0 +1,13 @@
+\begin{eqnarray*}
+     &&\|X M_t(M_t^TM_t)^{\dagger/2}\|^2\\
+     &=& \trace{\left(X M_t (M_t^TM_t)^{\dagger/2} (M_t^TM_t)^{\dagger/2} M_t^T X^T\right)}\\
+     &=& \trace{\left((M_t^TM_t)^{\dagger/2} (M_t^TM_t)^{\dagger/2} M_t^T X^TXM_t\right)}\\
+     &=& \trace{\left((M_t^TM_t)^{\dagger}M_t^T X^TXM_t\right)}\\
+     &=& \trace{\left(M_t(M_t^TM_t)^{\dagger}M_t^T X^TX\right)}\\
+     &=& \trace{\left(\widetilde{U}_t \Sigma_t \widetilde{V}_t^T(\widetilde{V}_t \Sigma_t \widetilde{U}_t^T \widetilde{U}_t \Sigma_t \widetilde{V}_t^T)^{\dagger}\widetilde{V}_t \Sigma_t \widetilde{U}_t^T X^TX\right)}\\
+     &=& \trace{\left(\widetilde{U}_t \Sigma_t \widetilde{V}_t^T(\widetilde{V}_t \Sigma_t^2 \widetilde{V}_t^T)^{\dagger}\widetilde{V}_t \Sigma_t \widetilde{U}_t^T X^TX\right)}\\
+     &=& \trace{\left(\widetilde{U}_t \Sigma_t \widetilde{V}_t^T \widetilde{V}_t \Sigma_t^{\dagger ^2} \widetilde{V}_t^T \widetilde{V}_t \Sigma_t \widetilde{U}_t^T X^T X\right)}\\
+     &=& \trace{\left(\widetilde{U}_t \Sigma_t \Sigma_t^{\dagger ^2} \Sigma_t \widetilde{U}_t^T X^T X\right)}\\
+     &=& \trace{\left(\widetilde{U}_t^T X^T X \widetilde{U}_t\right)}\\
+     &=& \|X U_t\|_F^2, 
+\end{eqnarray*}
