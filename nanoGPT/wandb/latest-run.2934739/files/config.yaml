@@ -1,0 +1,152 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            qi9kn6j7e0xsabt5551zvdjhvdnz9p3i:
+                args:
+                    - config/train_gpt2.py
+                codePath: train.py
+                codePathLocal: train.py
+                cpu_count: 96
+                cpu_count_logical: 192
+                cudaVersion: "12.8"
+                disk:
+                    /:
+                        total: "942963191808"
+                        used: "872581480448"
+                email: 1489180953@qq.com
+                executable: /home/quyingying/miniconda3/envs/finetune/bin/python3.10
+                gpu: NVIDIA H100 80GB HBM3
+                gpu_count: 8
+                gpu_nvidia:
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-ea234981-245f-babf-ea69-8b607d01eb79
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-655ca3d0-eb3c-01b2-2aac-537d79c8a2e2
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-39d68239-c2ea-339a-ce26-09af20b720a2
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-7779d570-d0ae-e427-4bd4-664834c24741
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-23a155b4-576f-b74c-c367-c3e87fb9b016
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-c6a63b59-f9a1-c4ab-0194-08a05b2dd0b6
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-540c6e67-7cd1-9e44-2352-96ec8c97d3c0
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-a5cddfcc-e61f-46c4-2a14-599107e64aa8
+                host: shanghai-jiaoda-gpu-1
+                memory:
+                    total: "2164158345216"
+                os: Linux-5.15.0-88-generic-x86_64-with-glibc2.35
+                program: /DATA/disk1/qyy/optimization/nanoGPT/train.py
+                python: CPython 3.10.18
+                root: /DATA/disk1/qyy/optimization/nanoGPT
+                startedAt: "2025-09-05T05:01:59.545378Z"
+                writerId: qi9kn6j7e0xsabt5551zvdjhvdnz9p3i
+        m: []
+        python_version: 3.10.18
+        t:
+            "1":
+                - 1
+                - 105
+            "2":
+                - 1
+                - 105
+            "3":
+                - 13
+                - 16
+            "4": 3.10.18
+            "5": 0.21.0
+            "12": 0.21.0
+            "13": linux-x86_64
+always_save_checkpoint:
+    value: true
+backend:
+    value: nccl
+batch_size:
+    value: 12
+beta1:
+    value: 0.9
+beta2:
+    value: 0.95
+bias:
+    value: false
+block_size:
+    value: 1024
+compile:
+    value: true
+dataset:
+    value: openwebtext
+decay_lr:
+    value: true
+device:
+    value: cuda
+dropout:
+    value: 0
+dtype:
+    value: bfloat16
+eval_interval:
+    value: 1000
+eval_iters:
+    value: 200
+eval_only:
+    value: false
+grad_clip:
+    value: 1
+gradient_accumulation_steps:
+    value: 40
+init_from:
+    value: scratch
+learning_rate:
+    value: 0.0006
+log_interval:
+    value: 10
+lr_decay_iters:
+    value: 30000
+max_iters:
+    value: 30000
+min_lr:
+    value: 6e-05
+n_embd:
+    value: 768
+n_head:
+    value: 12
+n_layer:
+    value: 12
+out_dir:
+    value: out_openwebtext
+wandb_log:
+    value: true
+wandb_project:
+    value: owt
+wandb_run_name:
+    value: gpt2-124M
+warmup_iters:
+    value: 2000
+weight_decay:
+    value: 0.01

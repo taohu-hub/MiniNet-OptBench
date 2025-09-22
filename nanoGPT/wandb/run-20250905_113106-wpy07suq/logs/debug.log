@@ -1,0 +1,21 @@
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_setup.py:_flush():80] Current SDK version is 0.21.0
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_setup.py:_flush():80] Configure stats pid to 1669574
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_setup.py:_flush():80] Loading settings from /home/quyingying/.config/wandb/settings
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_setup.py:_flush():80] Loading settings from /DATA/disk1/qyy/optimization/nanoGPT/wandb/settings
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_init.py:setup_run_log_directory():703] Logging user logs to /DATA/disk1/qyy/optimization/nanoGPT/wandb/run-20250905_113106-wpy07suq/logs/debug.log
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_init.py:setup_run_log_directory():704] Logging internal logs to /DATA/disk1/qyy/optimization/nanoGPT/wandb/run-20250905_113106-wpy07suq/logs/debug-internal.log
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_init.py:init():830] calling init triggers
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_init.py:init():835] wandb.init called with sweep_config: {}
+config: {'out_dir': 'out_openwebtext', 'eval_interval': 1000, 'log_interval': 10, 'eval_iters': 200, 'eval_only': False, 'always_save_checkpoint': True, 'init_from': 'scratch', 'wandb_log': True, 'wandb_project': 'owt', 'wandb_run_name': 'gpt2-124M', 'dataset': 'openwebtext', 'gradient_accumulation_steps': 40, 'batch_size': 12, 'block_size': 1024, 'n_layer': 12, 'n_head': 12, 'n_embd': 768, 'dropout': 0.0, 'bias': False, 'learning_rate': 0.0006, 'max_iters': 600000, 'weight_decay': 0.01, 'beta1': 0.9, 'beta2': 0.95, 'grad_clip': 1.0, 'decay_lr': True, 'warmup_iters': 2000, 'lr_decay_iters': 600000, 'min_lr': 6e-05, 'backend': 'nccl', 'device': 'cuda', 'dtype': 'bfloat16', 'compile': True, '_wandb': {}}
+2025-09-05 11:31:06,778 INFO    MainThread:1669574 [wandb_init.py:init():871] starting backend
+2025-09-05 11:31:06,983 INFO    MainThread:1669574 [wandb_init.py:init():874] sending inform_init request
+2025-09-05 11:31:06,986 INFO    MainThread:1669574 [wandb_init.py:init():882] backend started and connected
+2025-09-05 11:31:06,987 INFO    MainThread:1669574 [wandb_init.py:init():953] updated telemetry
+2025-09-05 11:31:06,988 INFO    MainThread:1669574 [wandb_init.py:init():977] communicating run to backend with 90.0 second timeout
+2025-09-05 11:31:08,141 INFO    MainThread:1669574 [wandb_init.py:init():1029] starting run threads in backend
+2025-09-05 11:31:08,229 INFO    MainThread:1669574 [wandb_run.py:_console_start():2458] atexit reg
+2025-09-05 11:31:08,229 INFO    MainThread:1669574 [wandb_run.py:_redirect():2306] redirect: wrap_raw
+2025-09-05 11:31:08,229 INFO    MainThread:1669574 [wandb_run.py:_redirect():2375] Wrapping output streams.
+2025-09-05 11:31:08,229 INFO    MainThread:1669574 [wandb_run.py:_redirect():2398] Redirects installed.
+2025-09-05 11:31:08,230 INFO    MainThread:1669574 [wandb_init.py:init():1075] run started, returning control to user process

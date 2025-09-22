@@ -1,0 +1,89 @@
+2025-08-08 03:34:18,368 INFO    MainThread:733122 [wandb_setup.py:_flush():81] Current SDK version is 0.20.1
+2025-08-08 03:34:18,368 INFO    MainThread:733122 [wandb_setup.py:_flush():81] Configure stats pid to 733122
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_setup.py:_flush():81] Loading settings from /home/llmteam/.config/wandb/settings
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_setup.py:_flush():81] Loading settings from /home/llmteam/qyy/optimization/nanoGPT/wandb/settings
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_init.py:setup_run_log_directory():703] Logging user logs to /home/llmteam/qyy/optimization/nanoGPT/wandb/run-20250808_033418-yzhrw62d/logs/debug.log
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_init.py:setup_run_log_directory():704] Logging internal logs to /home/llmteam/qyy/optimization/nanoGPT/wandb/run-20250808_033418-yzhrw62d/logs/debug-internal.log
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_init.py:init():831] calling init triggers
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_init.py:init():836] wandb.init called with sweep_config: {}
+config: {'out_dir': 'out-MNIST', 'eval_interval': 250, 'log_interval': 10, 'eval_iters': 200, 'eval_only': False, 'always_save_checkpoint': False, 'init_from': 'scratch', 'wandb_log': True, 'wandb_project': 'MNIST-char', 'wandb_run_name': 'mini-gpt', 'dataset': 'MNIST', 'gradient_accumulation_steps': 1, 'batch_size': 64, 'block_size': 256, 'n_layer': 6, 'n_head': 6, 'n_embd': 384, 'dropout': 0.2, 'bias': False, 'learning_rate': 0.001, 'max_iters': 5000, 'weight_decay': 0.1, 'beta1': 0.9, 'beta2': 0.99, 'grad_clip': 1.0, 'decay_lr': True, 'warmup_iters': 100, 'lr_decay_iters': 5000, 'min_lr': 0.0001, 'backend': 'nccl', 'device': 'cuda', 'dtype': 'bfloat16', 'compile': True, '_wandb': {}}
+2025-08-08 03:34:18,369 INFO    MainThread:733122 [wandb_init.py:init():872] starting backend
+2025-08-08 03:34:18,584 INFO    MainThread:733122 [wandb_init.py:init():875] sending inform_init request
+2025-08-08 03:34:18,593 INFO    MainThread:733122 [wandb_init.py:init():883] backend started and connected
+2025-08-08 03:34:18,597 INFO    MainThread:733122 [wandb_init.py:init():956] updated telemetry
+2025-08-08 03:34:18,598 INFO    MainThread:733122 [wandb_init.py:init():980] communicating run to backend with 90.0 second timeout
+2025-08-08 03:34:49,449 INFO    Thread-2 (wrapped_target):733122 [retry.py:__call__():173] [no run ID] Retry attempt failed:
+Traceback (most recent call last):
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+TimeoutError: timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+                       ^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connection.py", line 207, in _new_conn
+    raise ConnectTimeoutError(
+urllib3.exceptions.ConnectTimeoutError: (<urllib3.connection.HTTPSConnection object at 0x7f0e676d2a50>, 'Connection to api.wandb.ai timed out. (connect timeout=20)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.wandb.ai', port=443): Max retries exceeded with url: /graphql (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7f0e676d2a50>, 'Connection to api.wandb.ai timed out. (connect timeout=20)'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/wandb/sdk/lib/retry.py", line 134, in __call__
+    result = self._call_fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/wandb/sdk/internal/internal_api.py", line 396, in execute
+    return self.client.execute(*args, **kwargs)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 52, in execute
+    result = self._get_result(document, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/wandb/vendor/gql-0.2.0/wandb_gql/client.py", line 60, in _get_result
+    return self.transport.execute(document, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/wandb/sdk/lib/gql_request.py", line 58, in execute
+    request = self.session.post(self.url, **post_args)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/requests/sessions.py", line 637, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/llmteam/anaconda3/envs/env_llm/lib/python3.11/site-packages/requests/adapters.py", line 688, in send
+    raise ConnectTimeout(e, request=request)
+requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='api.wandb.ai', port=443): Max retries exceeded with url: /graphql (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7f0e676d2a50>, 'Connection to api.wandb.ai timed out. (connect timeout=20)'))

@@ -1,0 +1,8 @@
+cifar10/
+dist/
+*.egg-info/
+*__pycache__/
+upload.sh
+trash/
+logs/
+
