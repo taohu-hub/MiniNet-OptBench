@@ -1,0 +1,20 @@
+name: MiniNet-OptBench
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pytorch=2.4.*          
+  - torchvision=0.19.*      
+  - pytorch-cuda=12.1    
+  - numpy>=1.23
+  - pandas>=1.5
+  - scipy>=1.9             
+  - matplotlib>=3.6
+  - datasets>=2.13          
+  - tiktoken>=0.5           
+  - wandb>=0.15
+  - pip                      

@@ -1,10 +1,10 @@
 import torch
-torch.set_default_dtype(torch.float64)
+# torch.set_default_dtype(torch.float64)
 import torch.distributed as dist
 import math
 
 
-def zeropower_via_newtonschulz5(G, steps: int , eps):
+def zeropower_via_newtonschulz5(G, steps: int , eps = 1e-7):
     """
     Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
     quintic iteration whose coefficients are selected to maximize the slope at zero. For the purpose
@@ -18,13 +18,12 @@ def zeropower_via_newtonschulz5(G, steps: int , eps):
         return G / (G.norm() + 1e-7)
     assert G.ndim >= 2 # batched Muon implementation by @scottjmaddox, and put into practice in the record by @YouJiacheng
     a, b, c = (3.4445, -4.7750,  2.0315)
-    # X = G.bfloat16()
-    X = G
+    X = G.bfloat16()
+    # X = G
     if G.size(-2) > G.size(-1):
         X = X.mT
 
     # Ensure spectral norm is at most 1
-    # print(f"eps = {eps}")
     X = X / (X.norm(dim=(-2, -1), keepdim=True) + eps)
     if X.norm() > 1.3:
         print(X.norm())
@@ -45,7 +44,7 @@ def muon_update(grad, momentum, beta=0.95, ns_steps=5, nesterov=True , eps = 1e-
     momentum.lerp_(grad, 1 - beta)
     update = grad.lerp_(momentum, beta) if nesterov else momentum
     if update.ndim == 4: # for the case of conv filters
-        update = update.view(len(update), -1)
+        update = update.reshape(len(update), -1)
     update = zeropower_via_newtonschulz5(update, steps=ns_steps , eps = eps)
     if grad.ndim >= 2:
         update *= max(1, grad.size(-2) / grad.size(-1))**0.5
@@ -57,9 +56,9 @@ def zero_power_muon_update(grad, momentum, beta=0.95, ns_steps=5, nesterov=True 
     momentum.lerp_(grad, 1 - beta)
     update = grad.lerp_(momentum, beta) if nesterov else momentum
     if update.ndim == 4: # for the case of conv filters
-        update = update.view(len(update), -1)
-    update = zeropower_via_newtonschulz5(update, steps=ns_steps , eps = eps)
-    return update
+        update = update.reshape(update.shape[0], -1)
+    update_zero = zeropower_via_newtonschulz5(update, steps=ns_steps , eps = eps)
+    return update_zero, update
 
 def special_muon_update(drsom_grad, beta=0.95, ns_steps=5, nesterov=True , eps = 1e-7):
     update = zeropower_via_newtonschulz5(drsom_grad, steps=ns_steps , eps = eps)
@@ -79,6 +78,90 @@ def grad_norm(g: torch.Tensor) -> torch.Tensor:
         # e.g., conv weights: (out_c, in_c, kH, kW) -> (out_c, in_c*kH*kW)
         g = g.reshape(g.shape[0], -1)
     return torch.linalg.matrix_norm(g, ord='nuc')
+
+# --- Rank / SVD diagnostics -------------------------------------------------
+@torch.no_grad()
+def print_rank(G: torch.Tensor,
+               thresholds=(1e-2, 1e-3, 1e-4),
+               top_k: int = 20) -> None:
+    """
+    Print effective rank diagnostics for a gradient tensor.
+
+    - If G is 1D (vector), ranks are trivial so we do not print them.
+    - For tensors with ndim > 2 (e.g., conv filters), we reshape to 2D as
+      (out_features, in_features) following the Muon convention used elsewhere.
+    - We report:
+        * numeric ranks at relative thresholds (w.r.t. largest singular value)
+        * stable rank: ||G||_F^2 / ||G||_2^2
+        * entropy (participation) effective rank based on squared singulars
+        * spectral / Frobenius / nuclear norms
+        * top singular values (up to top_k)
+    """
+    import math
+    if G is None:
+        print("[print_rank] Gradient is None.")
+        return
+
+    # If vector, skip ranks
+    if G.ndim <= 1:
+        print(f"[print_rank] grad shape={tuple(G.shape)} (vector); ranks are trivial, skipping.")
+        return
+
+    # Reshape higher-order tensors to 2D matrix as elsewhere in Muon
+    if G.ndim > 2:
+        M = G.reshape(G.shape[0], -1)
+    else:
+        M = G
+
+    # Work in float64 for numerical robustness
+    M = M.detach().to(dtype=torch.float64)
+
+    # Compute singular values
+    try:
+        s = torch.linalg.svdvals(M)
+    except RuntimeError:
+        # Fallback: add tiny jitter in case of numerical issues
+        s = torch.linalg.svdvals(M + 1e-12 * torch.randn_like(M))
+
+    if s.numel() == 0:
+        print("[print_rank] No singular values (empty matrix).")
+        return
+
+    # Basic norms
+    s_max = float(s.max().item())
+    frob_sq = float(torch.sum(s**2).item())
+    frob = frob_sq ** 0.5
+    nuc = float(torch.sum(s).item())
+
+    # Effective ranks
+    stable_rank = frob_sq / (s_max ** 2 + 1e-12)
+    p = (s**2) / (torch.sum(s**2) + 1e-12)
+    entropy = float(-(p * (p + 1e-12).log()).sum().item())
+    entropy_rank = math.exp(entropy)
+
+    # Numeric ranks at relative thresholds
+    rank_at = {f"rank@>{thr:g}": int(torch.sum(s >= thr * s_max).item()) for thr in thresholds}
+
+    # Reporting
+    m, n = M.shape
+    print("[print_rank] grad matrix shape=", (m, n),
+          ", dtype=", M.dtype,
+          ", device=", M.device,
+          sep="")
+    print(f"  spectral(norm-2)={s_max:.6g} | frobenius={frob:.6g} | nuclear={nuc:.6g}")
+    print(f"  stable_rank={stable_rank:.6g} | entropy_rank={entropy_rank:.6g}")
+    print("  numeric_ranks:", rank_at)
+
+    k = min(top_k, s.numel())
+    s_sorted, _ = torch.sort(s, descending=True)
+    top_vals = s_sorted[:k].cpu().numpy().tolist()
+    if s.numel() > k:
+        tail_info = f"... (showing top {k} of {s.numel()})"
+    else:
+        tail_info = ""
+    print("  top singular values:", top_vals, tail_info)
+
+    input("Press Enter to Continue")
 
 class Muon(torch.optim.Optimizer):
     """
@@ -468,7 +551,9 @@ class SingleDeviceMuon_graft_gradient(_BaseSingleDeviceMuon):
                 if p.grad is None:
                     # continue
                     p.grad = torch.zeros_like(p)  # Force synchronization
-                # print(f"p.grad is created, it's grad shape is{p.grad.shape}")
+                
+                print_rank(p.grad)
+
                 grad_norm_g = grad_norm(p.grad)
                 grad_norm_g = grad_norm_g.item()
                 grad_nuclear_norm = grad_nuclear_norm + grad_norm_g
@@ -536,8 +621,6 @@ class SingleDeviceMuon_graft_uniform_gradient(_BaseSingleDeviceMuon):
 
         flag = True
         grad_nuclear_norm = 0
-        tot_muon_rank = 0
-        muon_operator_norm = 0
 
         for group in self.param_groups:
             for p in group["params"]:
@@ -545,30 +628,20 @@ class SingleDeviceMuon_graft_uniform_gradient(_BaseSingleDeviceMuon):
                     # continue
                     p.grad = torch.zeros_like(p)  # Force synchronization
                 # print(f"p.grad is created, it's grad shape is{p.grad.shape}")
-                grad_norm_g = grad_norm(p.grad)
-                grad_norm_g = grad_norm_g.item()
-                grad_nuclear_norm = max(grad_norm_g, grad_nuclear_norm)
+                # print_rank(p.grad)
+                
                 state = self.state[p]
                 if len(state) == 0:
                     Flag = False
                     state["momentum_buffer"] = torch.zeros_like(p)
                     state[MOMENTUM] = torch.zeros_like(p)
                     state[STEP] = 0
-                update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"] , eps = group['eps'])
+                update, mom = zero_power_muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"] , eps = group['eps'])
+                grad_norm_g = (update * mom).sum()
+                grad_norm_g = grad_norm_g.item()
+                grad_nuclear_norm = max(grad_norm_g, grad_nuclear_norm)
                 update = update.to(p.grad.dtype)
                 state[MUONGRAD] = update.reshape(p.shape)
-                                # Frobenius norm squared of MUON update (works for any tensor shape)
-
-                if state[MUONGRAD].ndim >= 2:
-                    sigma_max = torch.linalg.matrix_norm(state[MUONGRAD], ord=2)
-                else:
-                    sigma_max = torch.linalg.norm(state[MUONGRAD])
-                muon_fro_squared = (state[MUONGRAD] * state[MUONGRAD]).sum()
-                tot_muon_rank = tot_muon_rank + muon_fro_squared.item()      
-                muon_operator_norm = muon_operator_norm + sigma_max.item()
-
-                if state[STEP] % 100 == 0:
-                    print(f"grad nuclear norm{grad_norm_g} shape = {p.grad.shape}")
 
         flat_muon_grad, flat_momentum = self._gather_muon_grad_and_momentum()
 
@@ -583,7 +656,7 @@ class SingleDeviceMuon_graft_uniform_gradient(_BaseSingleDeviceMuon):
         self._add_grad(1, d , group['lr'] , group['weight_decay'])
         # print("We have succeeded after a round!")
 
-        return loss, tot_muon_rank, muon_operator_norm
+        return loss
 
 
 class SingleDeviceMuon_DRSOM_check(_BaseSingleDeviceMuon):
@@ -860,14 +933,16 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
                 group["lr"] = group.get("lr", 0.02)
                 group["momentum"] = group.get("momentum", 0.95)
                 group["weight_decay"] = group.get("weight_decay", 0)
-                assert set(group.keys()) == set(["params", "lr", "momentum", "weight_decay", "use_muon"])
+                allowed = {"params","lr","momentum","weight_decay","use_muon","betas","eps"}
+                assert set(group.keys()).issubset(allowed)
             else:
                 # defaults
                 group["lr"] = group.get("lr", 3e-4)
                 group["betas"] = group.get("betas", (0.9, 0.95))
                 group["eps"] = group.get("eps", 1e-10)
                 group["weight_decay"] = group.get("weight_decay", 0)
-                assert set(group.keys()) == set(["params", "lr", "betas", "eps", "weight_decay", "use_muon"])
+                allowed = {"params", "lr", "betas", "eps", "weight_decay", "use_muon"}
+                assert set(group.keys()).issubset(allowed)
         super().__init__(param_groups, dict())
 
     @torch.no_grad()
