@@ -1,3 +1,0 @@
-timestamp,run_name,optimizer_name,seed,dataset,iter,split,loss,lr,mfu_percent,dt_ms
-2025-09-15 11:10:39,MUON_lr0.0003_m0.95,MUON,2,openwebtext-3%,0,train_eval,10.945840835571289,2.998500749625187e-07,,
-2025-09-15 11:10:39,MUON_lr0.0003_m0.95,MUON,2,openwebtext-3%,0,val_eval,10.944284439086914,2.998500749625187e-07,,

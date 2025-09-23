@@ -15,9 +15,9 @@ references:
 - [OpenWebText](https://skylion007.github.io/OpenWebTextCorpus/) dataset
 
 
-5%采样：
+3% Sampling:
 Total samples in OpenWebText: 8013769
-Sampled 400688 documents (5.0%)
+Sampled 400688 documents (3.0%)
 Encoding train split...
 Encoding val split...
 Saving train (406760492 tokens) to /DATA/disk1/qyy/optimization/nanoGPT/data/openwebtext/train_small.bin

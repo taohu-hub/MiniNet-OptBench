@@ -1,0 +1,2 @@
+timestamp,run_name,optimizer_name,seed,dataset,param_groups,train_l1re,train_l2re,test_l1re,test_l2re,final_loss
+2025-09-23 15:41:45,adam,ADAM,1234,convection,lr 0.001,1.044286847114563,1.0760451555252075,1.045270323753357,1.0764696598052979,0.7073754072189331

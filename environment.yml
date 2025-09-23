@@ -16,5 +16,4 @@ dependencies:
   - matplotlib>=3.6
   - datasets>=2.13          
   - tiktoken>=0.5           
-  - wandb>=0.15
   - pip                      

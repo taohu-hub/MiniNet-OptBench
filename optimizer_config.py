@@ -62,7 +62,18 @@ def initialize_optimizer(model, optimizer_class_obj, param_groups_config, device
         g['params'] = params
         built_groups.append(g)
 
-    cls_name = optimizer_class_obj.__name__
+    cls_name = getattr(optimizer_class_obj, '__name__', optimizer_class_obj.__class__.__name__)
+    lowered = cls_name.lower()
+    if 'factory' in lowered:
+        if 'sgd' in lowered:
+            optimizer_class_obj = SGD
+            cls_name = 'SGD'
+        elif 'adamw' in lowered:
+            optimizer_class_obj = AdamW
+            cls_name = 'AdamW'
+        elif 'adam' in lowered:
+            optimizer_class_obj = Adam
+            cls_name = 'Adam'
     if cls_name in ['Adam', 'AdamW']:
         opt = optimizer_class_obj(built_groups)  # pass group dicts directly
         fused_available = 'fused' in inspect.signature(optimizer_class_obj).parameters
@@ -75,7 +86,11 @@ def initialize_optimizer(model, optimizer_class_obj, param_groups_config, device
         sanitized_groups = []
         for g in built_groups:
             ng = {k: v for k, v in g.items()
-                  if k in ['params', 'learning_rate', 'momentum', 'dampening', 'weight_decay', 'nesterov', 'maximize', 'foreach']}
+                  if k in ['params', 'lr', 'momentum', 'dampening', 'weight_decay', 'nesterov', 'maximize', 'foreach']}
+            lr_val = ng.pop('lr', None)
+            if lr_val is None:
+                lr_val = 0.0
+            ng['lr'] = lr_val
             if 'momentum' not in ng:
                 ng['momentum'] = 0.0
             sanitized_groups.append(ng)
@@ -88,7 +103,7 @@ def initialize_optimizer(model, optimizer_class_obj, param_groups_config, device
         g0 = built_groups[0] if built_groups else {'params': list(param_dict.values())}
         opt = optimizer_class_obj(
             g0['params'],
-            lr=g0.get('learning_rate', 1e-3),
+            lr=g0.get('lr', 1e-3),
             weight_decay=g0.get('weight_decay', 0.0),
             momentum=g0.get('momentum', 0.9),
         )
@@ -117,17 +132,17 @@ _opt_map = {
     'SINGLE_DEVICE_MUON_WITH_AUX_ADAM': 'SINGLE_DEVICE_MUON_WITH_AUX_ADAM',  # Explicit single-device only (overrides ddp check)
 }
 
-def _default_adamw_groups(weight_decay, learning_rate, beta1, beta2):
+def _default_adamw_groups(weight_decay, lr, beta1, beta2):
     return [
-        {'group_type': 'decay',   'weight_decay': weight_decay, 'learning_rate': learning_rate, 'betas': (beta1, beta2), 'eps': 1e-8},
-        {'group_type': 'nodecay', 'weight_decay': 0.0,          'learning_rate': learning_rate, 'betas': (beta1, beta2), 'eps': 1e-8},
+        {'group_type': 'decay',   'weight_decay': weight_decay, 'lr': lr, 'betas': (beta1, beta2), 'eps': 1e-8},
+        {'group_type': 'nodecay', 'weight_decay': 0.0,          'lr': lr, 'betas': (beta1, beta2), 'eps': 1e-8},
     ]
 
-def _pick_optimizer_class_and_groups(weight_decay, learning_rate, beta1, beta2, optimizer_class, param_groups, optimizer_name, ddp, momentum, optimizer_type, use_muon_for_hidden_only):
+def _pick_optimizer_class_and_groups(weight_decay, lr, beta1, beta2, optimizer_class, param_groups, optimizer_name, ddp, momentum, optimizer_type, use_muon_for_hidden_only):
     """Return (optimizer_class_obj, param_groups_config, chosen_name)"""
     # precedence: explicit class > name > type
     if optimizer_class is not None:
-        return optimizer_class, (param_groups or _default_adamw_groups(weight_decay, learning_rate, beta1, beta2)), optimizer_class.__name__
+        return optimizer_class, (param_groups or _default_adamw_groups(weight_decay, lr, beta1, beta2)), optimizer_class.__name__
 
     # name path (upper-file style)
     if optimizer_name:
@@ -141,25 +156,25 @@ def _pick_optimizer_class_and_groups(weight_decay, learning_rate, beta1, beta2, 
             if 'WITH_AUX_ADAM' in klass:
                 oc = MuonWithAuxAdam if ddp else SingleDeviceMuonWithAuxAdam
                 pg = param_groups if param_groups is not None else [
-                    {'group_type': 'other',  'use_muon': False, 'learning_rate': learning_rate, 'betas': (beta1, beta2), 'eps': 1e-8, 'weight_decay': weight_decay},
-                    {'group_type': 'hidden', 'use_muon': True,  'learning_rate': learning_rate,      'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
+                    {'group_type': 'other',  'use_muon': False, 'lr': lr, 'betas': (beta1, beta2), 'eps': 1e-8, 'weight_decay': weight_decay},
+                    {'group_type': 'hidden', 'use_muon': True,  'lr': lr,      'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
                 ]
                 return oc, pg, uname
             else:
                 oc = Muon if ddp else SingleDeviceMuon
                 pg = param_groups if param_groups is not None else [
-                    {'group_type': 'all', 'learning_rate': learning_rate, 'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
+                    {'group_type': 'all', 'lr': lr, 'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
                 ]
                 return oc, pg, uname
         else:
-            pg = param_groups if param_groups is not None else _default_adamw_groups(weight_decay, learning_rate, beta1, beta2)
+            pg = param_groups if param_groups is not None else _default_adamw_groups(weight_decay, lr, beta1, beta2)
             return klass, pg, uname
 
     if optimizer_type:
         t = optimizer_type.lower()
         if t == 'adamw' or t == 'adam':
             oc = AdamW if t == 'adamw' else Adam
-            pg = param_groups if param_groups is not None else _default_adamw_groups(weight_decay, learning_rate, beta1, beta2)
+            pg = param_groups if param_groups is not None else _default_adamw_groups(weight_decay, lr, beta1, beta2)
             return oc, pg, oc.__name__
         elif t == 'muon':
             if not MUON_IMPORT_OK:
@@ -167,18 +182,18 @@ def _pick_optimizer_class_and_groups(weight_decay, learning_rate, beta1, beta2, 
             if use_muon_for_hidden_only:
                 oc = MuonWithAuxAdam if ddp else SingleDeviceMuonWithAuxAdam
                 pg = param_groups if param_groups is not None else [
-                    {'group_type': 'other',  'use_muon': False, 'learning_rate': learning_rate, 'betas': (beta1, beta2), 'eps': 1e-8, 'weight_decay': weight_decay},
-                    {'group_type': 'hidden', 'use_muon': True,  'learning_rate': learning_rate,      'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
+                    {'group_type': 'other',  'use_muon': False, 'lr': lr, 'betas': (beta1, beta2), 'eps': 1e-8, 'weight_decay': weight_decay},
+                    {'group_type': 'hidden', 'use_muon': True,  'lr': lr,      'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
                 ]
                 return oc, pg, oc.__name__
             else:
                 oc = Muon if ddp else SingleDeviceMuon
                 pg = param_groups if param_groups is not None else [
-                    {'group_type': 'all', 'learning_rate': learning_rate, 'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
+                    {'group_type': 'all', 'lr': lr, 'momentum': momentum, 'eps': 1e-8, 'weight_decay': weight_decay},
                 ]
                 return oc, pg, oc.__name__
         else:
             raise ValueError(f"Unknown optimizer_type: {optimizer_type}")
 
     # default: AdamW upper-file style
-    return AdamW, (param_groups or _default_adamw_groups(weight_decay, learning_rate, beta1, beta2)), 'ADAMW'
+    return AdamW, (param_groups or _default_adamw_groups(weight_decay, lr, beta1, beta2)), 'ADAMW'

@@ -14,6 +14,7 @@ import sys
 with open(sys.argv[0]) as f:
     code = f.read()
 import uuid
+import time
 from math import ceil
 
 import torch
@@ -66,7 +67,12 @@ def batch_crop(images, crop_size):
 
 class CifarLoader:
 
-    def __init__(self, path, train=True, batch_size=500, aug=None):
+    def __init__(self, path, train=True, batch_size=500, aug=None, device="cuda"):
+        if isinstance(device, torch.device):
+            self.device = device
+        else:
+            self.device = torch.device(device)
+
         data_path = os.path.join(path, "train.pt" if train else "test.pt")
         if not os.path.exists(data_path):
             dset = torchvision.datasets.CIFAR10(path, download=True, train=train)
@@ -74,12 +80,15 @@ class CifarLoader:
             labels = torch.tensor(dset.targets)
             torch.save({"images": images, "labels": labels, "classes": dset.classes}, data_path)
 
-        data = torch.load(data_path, map_location=torch.device("cuda"))
+        data = torch.load(data_path, map_location=self.device)
         self.images, self.labels, self.classes = data["images"], data["labels"], data["classes"]
         # It's faster to load+process uint8 data than to load preprocessed fp16 data
-        self.images = (self.images.half() / 255).permute(0, 3, 1, 2).to(memory_format=torch.channels_last)
+        self.images = (self.images.half() / 255).permute(0, 3, 1, 2).to(self.device, memory_format=torch.channels_last)
+        self.labels = self.labels.to(self.device)
 
-        self.normalize = T.Normalize(CIFAR_MEAN, CIFAR_STD)
+        mean = CIFAR_MEAN.to(self.device, dtype=self.images.dtype)
+        std = CIFAR_STD.to(self.device, dtype=self.images.dtype)
+        self.normalize = lambda x: (x - mean.view(1, -1, 1, 1)) / std.view(1, -1, 1, 1)
         self.proc_images = {} # Saved results of image processing to be done on the first epoch
         self.epoch = 0
 
@@ -286,19 +295,36 @@ def evaluate(model, loader, tta_level=0):
 #                Training                  #
 ############################################
 
-def main(run, model):
-    import argparse, json
+def _build_parser():
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--optimizer_name', type=str, default=None)
     parser.add_argument('--param_groups', type=str, default=None)
     parser.add_argument('--epochs', type=int, default=8)         # map to total_train_steps
     parser.add_argument('--batch_size', type=int, default=2000)
     parser.add_argument('--device', type=str, default='cuda')
-    args = parser.parse_args()
+    return parser
+
+
+def _resolve_device(device_str: str):
+    if device_str == 'auto':
+        device_str = 'cuda' if torch.cuda.is_available() else 'cpu'
+    try:
+        device = torch.device(device_str)
+    except (TypeError, RuntimeError):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if device.type == 'cuda' and not torch.cuda.is_available():
+        print("CUDA requested but not available; falling back to CPU.")
+        device = torch.device('cpu')
+    return device, device.type
+
+
+def main(run, model, args):
+    import json
 
     batch_size = args.batch_size
-    device = args.device
-    device_type = 'cuda' if 'cuda' in device else 'cpu'
+    device = args.device_resolved
+    device_type = args.device_type
     dataset = 'cifar10'
     optimizer_type = 'muon' 
     optimizer_name = args.optimizer_name
@@ -317,8 +343,8 @@ def main(run, model):
             raise ValueError(f"Invalid JSON for --param_groups: {args.param_groups}") from exc
     optimizer_class = None
 
-    test_loader = CifarLoader("cifar10", train=False, batch_size=2000)
-    train_loader = CifarLoader("cifar10", train=True, batch_size=batch_size, aug=dict(flip=True, translate=2))
+    test_loader = CifarLoader("cifar10", train=False, batch_size=2000, device=device)
+    train_loader = CifarLoader("cifar10", train=True, batch_size=batch_size, aug=dict(flip=True, translate=2), device=device)
     if run == "warmup":
         # The only purpose of the first run is to warmup the compiled model, so we can use dummy data
         train_loader.labels = torch.randint(0, 10, size=(len(train_loader.labels),), device=train_loader.labels.device)
@@ -326,21 +352,36 @@ def main(run, model):
     whiten_bias_train_steps = ceil(3 * len(train_loader))
 
     # Create optimizers and learning rate schedulers
-    optimizer_class_obj, param_groups_config, chosen_opt_name = _pick_optimizer_class_and_groups(weight_decay=weight_decay, learning_rate = learning_rate, beta1 = beta1, beta2 = beta2, optimizer_class = optimizer_class, param_groups = param_groups, optimizer_name = optimizer_name, ddp = False, momentum= momentum, optimizer_type=optimizer_type, use_muon_for_hidden_only=use_muon_for_hidden_only)
+    optimizer_class_obj, param_groups_config, chosen_opt_name = _pick_optimizer_class_and_groups(weight_decay=weight_decay, lr=learning_rate, beta1=beta1, beta2=beta2, optimizer_class=optimizer_class, param_groups=param_groups, optimizer_name=optimizer_name, ddp=False, momentum=momentum, optimizer_type=optimizer_type, use_muon_for_hidden_only=use_muon_for_hidden_only)
     optimizer_name = optimizer_name or chosen_opt_name  # keep for logging
     optimizer = initialize_optimizer(model, optimizer_class_obj, param_groups_config, device_type, ddp=False)
 
-    # For accurately timing GPU code
-    starter = torch.cuda.Event(enable_timing=True)
-    ender = torch.cuda.Event(enable_timing=True)
+    # For accurately timing GPU code (fallback to wall-clock on CPU)
+    starter = ender = None
     time_seconds = 0.0
-    def start_timer():
-        starter.record()
-    def stop_timer():
-        ender.record()
-        torch.cuda.synchronize()
-        nonlocal time_seconds
-        time_seconds += 1e-3 * starter.elapsed_time(ender)
+    if device_type == 'cuda':
+        starter = torch.cuda.Event(enable_timing=True)
+        ender = torch.cuda.Event(enable_timing=True)
+
+        def start_timer():
+            starter.record()
+
+        def stop_timer():
+            ender.record()
+            torch.cuda.synchronize()
+            nonlocal time_seconds
+            time_seconds += 1e-3 * starter.elapsed_time(ender)
+    else:
+        start_time = None
+
+        def start_timer():
+            nonlocal start_time
+            start_time = time.perf_counter()
+
+        def stop_timer():
+            nonlocal time_seconds, start_time
+            if start_time is not None:
+                time_seconds += time.perf_counter() - start_time
 
     model.reset()
     step = 0
@@ -393,13 +434,24 @@ def main(run, model):
 
 if __name__ == "__main__":
 
-    # We re-use the compiled model between runs to save the non-data-dependent compilation time
-    model = CifarNet().cuda().to(memory_format=torch.channels_last)
-    model.compile(mode="max-autotune")
+    parser = _build_parser()
+    args = parser.parse_args()
+    device, device_type = _resolve_device(args.device)
+    args.device_resolved = device
+    args.device_type = device_type
+
+    # Re-use the compiled model between runs to save the non-data-dependent compilation time
+    model = CifarNet().to(device)
+    if device_type == 'cuda':
+        model = model.to(memory_format=torch.channels_last)
+        if hasattr(model, "compile"):
+            model.compile(mode="max-autotune")
+    else:
+        model = model.to(memory_format=torch.contiguous_format)
 
     print_columns(logging_columns_list, is_head=True)
-    main("warmup", model)
-    accs = torch.tensor([main(run, model) for run in range(200)])
+    main("warmup", model, args)
+    accs = torch.tensor([main(run, model, args) for run in range(5)])
     print("Mean: %.4f    Std: %.4f" % (accs.mean(), accs.std()))
 
     log_dir = os.path.join("logs", str(uuid.uuid4()))

@@ -8,11 +8,6 @@ import torch
 # launch as the following (e.g. in a screen session) and wait ~5 days:
 # $ torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
 
-# wandb logging
-wandb_log = False
-wandb_project = 'owt'
-wandb_run_name = 'gpt2-124M'
-
 # data
 dataset = 'openwebtext-3%'
 

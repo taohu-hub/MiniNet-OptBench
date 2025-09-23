@@ -41,7 +41,7 @@ Optimizer selection (compatibility):
 Logging:
 --------
 - Set env var LOG_CSV="results/benchmark_runs.csv" to append a CSV log.
-- Set RUN_NAME for per-run labeling. Optionally enable Weights & Biases via wandb_log.
+- Set RUN_NAME for per-run labeling.
 
 Notes:
 ------
@@ -90,11 +90,6 @@ eval_only = False
 always_save_checkpoint = True
 init_from = 'scratch'  # 'scratch' | 'resume' | 'gpt2*'
 
-# wandb logging
-wandb_log = False
-wandb_project = 'owt'
-wandb_run_name = 'gpt2'
-
 # data
 dataset = 'openwebtext-3%'
 trainingset = 'train.bin'     # upper-file default
@@ -121,7 +116,7 @@ param_groups = None       # Upper-file style param group configs; see initialize
 
 # training horizon & hyperparams
 epochs = None             # If set, overrides max_iters
-learning_rate = 6e-4
+lr = 6e-4
 max_iters = 30000
 weight_decay = 1e-1
 beta1 = 0.9
@@ -144,7 +139,7 @@ compile = True
 
 # CSV logger (upper file)
 log_csv = os.environ.get("LOG_CSV")  # e.g., "results/benchmark_runs.csv"
-folder = os.path.dirname(log_csv)
+folder = os.path.dirname(log_csv) if log_csv else None
 run_name = os.environ.get("RUN_NAME")  # optional per-run label
 
 # -----------------------------------------------------------------------------
@@ -163,25 +158,10 @@ if epochs is not None:
 # Utilities
 # -----------------------------------------------------------------------------
 def _resolve_memmap_filename(split: str, data_dir: str) -> str:
-    """Return the first existing memmap filename for the given split.
-
-    Priority order:
-    1) trainingset/validationset (config)
-    2) *_3.bin alternative (lower file) if present
-    3) standard 'train.bin' / 'val.bin'
-    """
+    """Return the best-available memmap filename for the given split."""
     preferred = trainingset if split == 'train' else validationset
     candidates = [preferred]
-
-    base, ext = os.path.splitext(preferred)
-    if not base.endswith('_3'):
-        candidates.append(base + '_3' + ext)
-
-    # explicit lower-file names
-    if split == 'train':
-        candidates += ['train_3.bin', 'train.bin']
-    else:
-        candidates += ['val_3.bin', 'val.bin']
+    candidates.append('train.bin' if split == 'train' else 'val.bin')
 
     for fname in candidates:
         path = os.path.join(data_dir, fname)
@@ -198,8 +178,9 @@ def _setup_metric_csv(name: str, fieldnames):
     global _metric_csv_writers
     if name in _metric_csv_writers:
         return _metric_csv_writers[name]
-    os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, f"{name}.csv")
+    base_dir = folder or "results"
+    os.makedirs(base_dir, exist_ok=True)
+    path = os.path.join(base_dir, f"{name}.csv")
     file_exists = os.path.exists(path)
     fh = open(path, "a", newline="", buffering=1)
     writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -222,7 +203,7 @@ def _csv_logger_setup():
     fh = open(log_csv, "a", newline="", buffering=1)
     writer = csv.DictWriter(fh, fieldnames=[
         "timestamp", "run_name", "optimizer_name", "seed", "dataset",
-        "iter", "split", "loss", "learning_rate", "mfu_percent", "dt_ms"
+        "iter", "split", "loss", "lr", "mfu_percent", "dt_ms"
     ])
     if not file_exists:
         writer.writeheader()
@@ -241,7 +222,7 @@ def _csv_log(writer, split, it, loss_val=None, lr_val=None, mfu_val=None, dt_ms=
         "iter": int(it),
         "split": split,
         "loss": float(loss_val) if loss_val is not None else "",
-        "learning_rate": float(lr_val) if lr_val is not None else "",
+        "lr": float(lr_val) if lr_val is not None else "",
         "mfu_percent": float(mfu_val) if isinstance(mfu_val, (int, float)) else "",
         "dt_ms": float(dt_ms) if dt_ms is not None else "",
     })
@@ -368,7 +349,7 @@ except TypeError:
     scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # pick optimizer class and param groups (deferred until after definitions)
-optimizer_class_obj, param_groups_config, chosen_opt_name = _pick_optimizer_class_and_groups(weight_decay, learning_rate, beta1, beta2, optimizer_class, param_groups, optimizer_name, ddp, momentum, optimizer_type, use_muon_for_hidden_only)
+optimizer_class_obj, param_groups_config, chosen_opt_name = _pick_optimizer_class_and_groups(weight_decay, lr, beta1, beta2, optimizer_class, param_groups, optimizer_name, ddp, momentum, optimizer_type, use_muon_for_hidden_only)
 optimizer_name = optimizer_name or chosen_opt_name  # keep for logging
 
 # create optimizer
@@ -410,22 +391,15 @@ def estimate_loss():
 
 def get_lr(it):
     if not decay_lr:
-        return learning_rate
+        return lr
     if it < warmup_iters:
-        return learning_rate * (it + 1) / (warmup_iters + 1)
+        return lr * (it + 1) / (warmup_iters + 1)
     if it > lr_decay_iters:
         return min_lr
     decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
     decay_ratio = max(0.0, min(1.0, decay_ratio))
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
-    return float(min_lr + coeff * (learning_rate - min_lr))
-
-# -----------------------------------------------------------------------------
-# Optional W&B
-# -----------------------------------------------------------------------------
-if wandb_log and master_process:
-    import wandb
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)
+    return float(min_lr + coeff * (lr - min_lr))
 
 # -----------------------------------------------------------------------------
 # Training loop
@@ -444,20 +418,12 @@ while True:
     # LR schedule
     lr = get_lr(iter_num)
     for pg in optimizer.param_groups:
-        pg['learning_rate'] = lr
+        pg['lr'] = lr
 
     # periodic evaluation (lower-file cadence) + checkpointing
     if iter_num % eval_interval == 0 and master_process:
         losses = estimate_loss()
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        if wandb_log:
-            wandb.log({
-                "iter": iter_num,
-                "train/loss": float(losses['train']),
-                "val/loss": float(losses['val']),
-                "learning_rate": lr,
-                "mfu": running_mfu * 100.0,
-            })
         _csv_log(csv_writer, "train_eval", iter_num, loss_val=float(losses['train']), lr_val=lr, mfu_val=(running_mfu*100 if running_mfu>=0 else None))
         _csv_log(csv_writer, "val_eval", iter_num, loss_val=float(losses['val']), lr_val=lr, mfu_val=(running_mfu*100 if running_mfu>=0 else None))
 

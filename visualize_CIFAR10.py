@@ -19,7 +19,7 @@ def safe_literal_eval(x):
 df_final['params'] = df_final['param_groups'].apply(safe_literal_eval)
 
 # Extract key parameters for labeling
-df_final['lr'] = df_final['params'].apply(lambda x: x[0].get('learning_rate', None) if x else None)
+df_final['lr'] = df_final['params'].apply(lambda x: x[0].get('lr', None) if x else None)
 df_final['momentum'] = df_final['params'].apply(lambda x: x[0].get('momentum', None) if x else None)
 df_final['eps'] = df_final['params'].apply(lambda x: x[0].get('eps', None) if x else None)
 df_final['wd'] = df_final['params'].apply(lambda x: x[0].get('weight_decay', None) if x else None)
