@@ -1,6 +1,7 @@
 # MiniNet-OptBench
 
-A lightweight benchmark suite for training/finetuning medium-sized GPTs and comparing optimizers. This benchmark 
+A lightweight benchmark suite for training/finetuning medium-sized GPTs and comparing optimizers. This benchmark is based on Karpathy's nanoGPT, Pratik Rathore's opt\_for\_pinns and KellerJordan's cifar10-airbench.
+
 
 ---
 
@@ -44,6 +45,7 @@ ARCH=nanoGPT
 Supported network structures:
 * `CNN` (Convolutional Neural Nerwork for solving `CIFAR-10`)
 * `nanoGPT` (with datasets for language models)
+* `PINN`
 
 
 ### Example 2: Change dataset
